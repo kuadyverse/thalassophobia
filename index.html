@@ -1,5 +1,1566 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <title>Soon.</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <meta charset="UTF-8">
+    <title>Thalassophobia</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <style>
+        body {
+            margin: 0;
+            background: #010408;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+            overflow: hidden;
+        }
+        #ui-bar {
+            width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 15px;
+            background: #081426;
+            border-bottom: 2px solid #00e5ff;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        #canvas-container {
+            position: relative;
+            width: 900px;
+            height: 550px;
+        }
+        canvas {
+            border: 2px solid #1c3d5a;
+            background: #000;
+        }
+        .hud-val { color: #00e5ff; font-weight: bold; }
+        
+        /* Left Sidebars for Oxygen & CO2 */
+        .sidebar-left {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+        .meter-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(4, 14, 28, 0.85);
+            border: 1px solid #1c3d5a;
+            padding: 6px;
+            border-radius: 6px;
+            width: 32px;
+        }
+        .meter-label { font-size: 10px; font-weight: bold; margin-bottom: 4px; color: #88a; }
+        .meter-bar-outer {
+            width: 14px;
+            height: 120px;
+            background: #081426;
+            border: 1px solid #00e5ff;
+            border-radius: 3px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+        }
+        .meter-bar-inner { width: 100%; transition: height 0.1s linear; }
+        #oxy-fill { background: linear-gradient(to top, #00b4d8, #90e0ef); }
+        #co2-fill { background: linear-gradient(to top, #ffb703, #ff0055); }
+        .meter-readout {
+            font-size: 8px;
+            font-weight: bold;
+            color: #00e5ff;
+            margin-top: 5px;
+            text-align: center;
+            line-height: 1.1;
+        }
+
+        /* Right Hotbar for Inventory */
+        .hotbar-right {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 64px;
+            background: rgba(4, 14, 28, 0.85);
+            border: 1px solid #1c3d5a;
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 10;
+        }
+        .hotbar-title { font-size: 9px; font-weight: bold; color: #88a; }
+        .inventory-slot {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.05);
+            border: 1px dashed #1c3d5a;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .inventory-slot.filled { border: 1px solid #00e5ff; background: rgba(0,229,255,0.1); }
+        .count-badge {
+            position: absolute;
+            bottom: 2px;
+            right: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 2px #000;
+        }
+
+        /* Fixed Right-Click Context Tooltip */
+        #custom-context-menu {
+            display: none;
+            position: fixed;
+            min-width: 140px;
+            max-width: 200px;
+            background: rgba(8, 20, 38, 0.98);
+            border: 1px solid #00e5ff;
+            border-radius: 6px;
+            padding: 8px 12px;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            z-index: 300;
+            pointer-events: none;
+            font-size: 11px;
+            color: #fff;
+            white-space: nowrap;
+        }
+        #custom-context-menu h5 { margin: 0 0 4px 0; font-size: 12px; color: #00e5ff; }
+
+        /* Terminal Shop & Storage Modals */
+        #shop-modal, #storage-modal, #win-modal {
+            display: none;
+            position: absolute;
+            top: 25px;
+            left: 50px;
+            width: 730px;
+            height: 500px;
+            background: rgba(4, 14, 28, 0.98);
+            border: 2px solid #00e5ff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+            box-sizing: border-box;
+            z-index: 100;
+        }
+        #win-modal {
+            width: 560px;
+            height: 380px;
+            left: 170px;
+            top: 85px;
+            text-align: center;
+            border-color: #e0aaff;
+            box-shadow: 0 0 40px rgba(224, 170, 255, 0.5);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #00e5ff;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        .modal-header h2 { margin: 0; color: #00e5ff; font-size: 18px; }
+        
+        .shop-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .shop-card {
+            background: rgba(0, 229, 255, 0.05);
+            border: 1px solid #1c3d5a;
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .shop-card h4 { margin: 0 0 4px 0; color: #fff; font-size: 13px; }
+        .shop-card p { margin: 0 0 6px 0; font-size: 11px; color: #88a; }
+        .req-tag { font-size: 11px; color: #ffb703; font-weight: bold; margin-bottom: 4px; }
+        
+        #sell-drop-zone {
+            margin-top: 12px;
+            height: 80px;
+            border: 2px dashed #ffb703;
+            border-radius: 8px;
+            background: rgba(255, 183, 3, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #ffb703;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        #sell-drop-zone.drag-over { background: rgba(255, 183, 3, 0.25); border-style: solid; }
+
+        .close-btn {
+            background: #ff0055;
+            color: #fff;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-ui {
+            background: #1c3d5a;
+            color: #00e5ff;
+            border: 1px solid #00e5ff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-ui:hover { background: #00e5ff; color: #081426; }
+
+        #pause-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 90;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .storage-layout {
+            display: flex;
+            gap: 20px;
+            height: 380px;
+        }
+        .storage-section {
+            flex: 1;
+            background: rgba(8, 20, 38, 0.6);
+            border: 1px solid #1c3d5a;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .storage-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #00e5ff;
+            border-bottom: 1px solid #1c3d5a;
+            padding-bottom: 4px;
+        }
+        .storage-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .vault-slot {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.05);
+            border: 1px dashed #1c3d5a;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .vault-slot.filled { border: 1px solid #ffb703; background: rgba(255, 183, 3, 0.1); }
+        .vault-slot:hover { border-color: #00e5ff; }
+
+        /* Fast Travel Panel inside Shop Modal */
+        .fast-travel-panel {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed #1c3d5a;
+            display: none;
+        }
+        .fast-travel-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+    </style>
 </head>
+<body>
+
+<div id="ui-bar">
+    <div>Pos: <span class="hud-val" id="coords-txt">X: 0m | Y: 0m</span></div>
+    <div>Zone: <span class="hud-val" id="zone-txt">Sunlight Zone</span></div>
+    <div id="rebirth-display" style="display:none;">Rebirth: <span class="hud-val" style="color:#e0aaff" id="rebirth-txt">0</span></div>
+    <div>Hull: <span class="hud-val" id="hull-txt">Lvl 1 (Max 200m)</span></div>
+    <div>Cargo: <span class="hud-val" style="color:#00e5ff" id="capacity-txt">0/5</span></div>
+    <div>Scraps: <span class="hud-val" style="color:#ffb703" id="scrap-txt">0</span></div>
+    <div>Credits: <span class="hud-val" style="color:#55ff55" id="money-txt">$0</span></div>
+    <button class="btn-ui" onclick="togglePause()">Pause [ESC]</button>
+</div>
+
+<div id="canvas-container">
+    <canvas id="gameCanvas" width="900" height="550"></canvas>
+
+    <!-- Left Sidebars: Oxygen & CO2 -->
+    <div class="sidebar-left">
+        <div class="meter-container">
+            <div class="meter-label">O2</div>
+            <div class="meter-bar-outer"><div id="oxy-fill" class="meter-bar-inner"></div></div>
+            <div id="oxy-num" class="meter-readout">100/100</div>
+        </div>
+        <div class="meter-container">
+            <div class="meter-label">CO2</div>
+            <div class="meter-bar-outer"><div id="co2-fill" class="meter-bar-inner"></div></div>
+            <div id="co2-num" class="meter-readout">100/100</div>
+        </div>
+    </div>
+
+    <!-- Right Hotbar: Inventory Slots -->
+    <div class="hotbar-right">
+        <div class="hotbar-title" id="hotbar-title-txt">SLOTS</div>
+        <div id="inventory-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
+
+    <!-- Custom Right-Click Context Tooltip -->
+    <div id="custom-context-menu">
+        <h5 id="ctx-title">Item Name</h5>
+        <div id="ctx-mutation" style="color:#ffb703; font-weight:bold;">Normal</div>
+        <div id="ctx-count">Amount: x1</div>
+        <div id="ctx-value" style="color:#55ff55;">Value: $0</div>
+    </div>
+
+    <!-- Pause Overlay -->
+    <div id="pause-overlay">
+        <h1 style="color:#00e5ff; margin-bottom:5px;">GAME PAUSED</h1>
+        <p style="color:#88a;">Press [ESC] or Click Resume to Continue</p>
+        <button class="btn-ui" style="margin-top:15px; padding:8px 20px;" onclick="togglePause()">Resume</button>
+    </div>
+
+    <!-- Terminal Shop & Fast Travel Modal -->
+    <div id="shop-modal">
+        <div class="modal-header">
+            <div>
+                <h2>Research Base Terminal</h2>
+                <small style="color:#00e5ff;">Drag Hotbar Items Below to Sell</small>
+            </div>
+            <button class="close-btn" onclick="toggleShop(false)">X</button>
+        </div>
+        <div class="shop-grid" id="shop-items"></div>
+        <div id="sell-drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropSell(event)">
+            <span>⬇ DRAG SAMPLES HERE TO SELL ⬇</span>
+            <small style="color:#88a; margin-top:4px;">Drag items from your right Hotbar to liquidate them for credits</small>
+        </div>
+        <!-- Fast Travel Panel (Unlocks after beating the game once) -->
+        <div class="fast-travel-panel" id="fast-travel-section">
+            <div style="font-size: 11px; font-weight: bold; color: #e0aaff;">⚡ HADAL GATEWAY - ZONE FAST TRAVEL (UNLOCKED)</div>
+            <div class="fast-travel-buttons">
+                <button class="btn-ui" style="font-size:10px;" onclick="fastTravelTo(0, 32)">Sunlight (0m)</button>
+                <button class="btn-ui" style="font-size:10px;" onclick="fastTravelTo(1500, 1500 * GRID_SIZE)">Twilight (1,500m)</button>
+                <button class="btn-ui" style="font-size:10px;" onclick="fastTravelTo(3000, 3000 * GRID_SIZE)">Midnight (3,000m)</button>
+                <button class="btn-ui" style="font-size:10px;" onclick="fastTravelTo(4500, 4500 * GRID_SIZE)">Abyss (4,500m)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Vault Terminal -->
+    <div id="storage-modal">
+        <div class="modal-header">
+            <div>
+                <h2>Preservation Storage Vault</h2>
+                <small style="color:#00e5ff;">Click an Item in Submarine Cargo to Store it | Click a Vault Item to Retrieve it</small>
+            </div>
+            <button class="close-btn" onclick="toggleStorage(false)">X</button>
+        </div>
+        <div class="storage-layout">
+            <div class="storage-section">
+                <h3>Submarine Cargo (Click to Store ->)</h3>
+                <div class="storage-grid" id="cargo-vault-transfer-list"></div>
+            </div>
+            <div class="storage-section">
+                <h3>Vault Storage (Click to Retrieve <-)</h3>
+                <div class="storage-grid" id="storage-vault-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Win / Rebirth Popup Modal -->
+    <div id="win-modal">
+        <h2 style="color: #e0aaff; margin-top: 10px;">EXPEDITION COMPLETE!</h2>
+        <p style="color: #fff; font-size: 13px; line-height: 1.5; padding: 0 15px;">
+            You have successfully conquered the Hadal Trenches and breached past 6200m! 
+            <br><br>
+            Would you like to <b>Rebirth</b>? This will reset your current depth, money, and items, but grant a permanent <span style="color:#55ff55;">+50% sample value multiplier</span> and unlock **Zone Fast Travel** permanently across all future runs!
+        </p>
+        <div style="display: flex; justify-content: center; gap: 15px; margin-top: 25px;">
+            <button class="btn-ui" style="background:#2b2d42; border-color:#e0aaff; color:#e0aaff; padding: 8px 16px;" onclick="handleWinChoice(false)">Continue Exploring</button>
+            <button class="btn-ui" style="background:#00e5ff; color:#010408; padding: 8px 20px;" onclick="handleWinChoice(true)">Accept Rebirth</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const GRID_SIZE = 32;
+const WORLD_WIDTH_METERS = 100; 
+const WORLD_HEIGHT_METERS = 6300; 
+const WORLD_WIDTH = WORLD_WIDTH_METERS * GRID_SIZE;
+const WORLD_HEIGHT = WORLD_HEIGHT_METERS * GRID_SIZE;
+const BASES = [0, 1500, 3000, 4500]; // Base Depths in meters
+
+let isPaused = false;
+let shopOpen = false;
+let storageOpen = false;
+let keys = {};
+window.hasWon = false;
+window.hasBeatenGameOnce = false; // Tracks if game has ever been completed to permanently unlock fast travel
+
+let player = {
+    x: 1600,
+    y: 32,
+    vx: 0, vy: 0,
+    accel: 0.16,
+    maxSpeedX: 2.5, maxSpeedY: 2.2,
+    gravity: 0.03, drag: 0.95,
+    scanRange: 110,
+    cargo: [],
+    maxHotbarSlots: 5,
+    maxTotalItems: 5,
+    credits: 0, scraps: 0,
+    oxygen: 100, maxOxygen: 100,
+    co2: 100, maxCo2: 100,
+    hullLevel: 1, maxSafeDepth: 200,
+    health: 100, maxHealth: 100,
+    hasFlashlight: true,
+    inRaftRange: false,
+    inStorageRange: false,
+    facingLeft: false,
+    rebirthLevel: 0,
+    valueMultiplier: 1.0
+};
+
+let vaultStorage = Array(16).fill(null);
+
+let marineLife = [];
+let scrapNodes = [];
+let seabedStructures = [];
+let airPockets = []; 
+let particles = [];
+let maxDepthSpawned = 0;
+
+function getSandWalls(y) {
+    let depthM = y / GRID_SIZE;
+    let baseMargin = 80;
+    let trenchFactor = 0;
+    
+    if (depthM > 400) {
+        trenchFactor = Math.min(1, (depthM - 400) / 4800);
+    }
+    
+    let leftBase = baseMargin + trenchFactor * 800;
+    let rightBase = WORLD_WIDTH - (baseMargin + trenchFactor * 800);
+
+    let noiseLeft = Math.sin(y * 0.003) * 70 + Math.cos(y * 0.012) * 35 + Math.sin(y * 0.0007) * 120;
+    let noiseRight = Math.cos(y * 0.003) * 70 + Math.sin(y * 0.011) * 35 - Math.cos(y * 0.0008) * 120;
+
+    let leftWallX = Math.max(40, leftBase + noiseLeft);
+    let rightWallX = Math.min(WORLD_WIDTH - 40, rightBase + noiseRight);
+
+    if (rightWallX - leftWallX < 650) {
+        let mid = (leftWallX + rightWallX) / 2;
+        leftWallX = mid - 325;
+        rightWallX = mid + 325;
+    }
+
+    return { left: leftWallX, right: rightWallX };
+}
+
+const MUTATIONS = [
+    { name: "Normal", weight: 70, valMult: 1.0, color: null },
+    { name: "Glowing", weight: 10, valMult: 2.0, color: "#00e5ff" },
+    { name: "Albino", weight: 7, valMult: 2.5, color: "#ffffff" },
+    { name: "Voidtouched", weight: 5, valMult: 3.0, color: "#11001c" },
+    { name: "Shiny Gold", weight: 4, valMult: 3.5, color: "#ffd700" },
+    { name: "Bioluminescent", weight: 2.5, valMult: 4.0, color: "#39ff14" },
+    { name: "Rainbow", weight: 1, valMult: 5.0, color: "rainbow" },
+    { name: "Cosmic", weight: 0.5, valMult: 10.0, color: "cosmic" }
+];
+
+const SPECIES = [
+    { name: "Clownfish", shape: "fish", minDepth: 2, maxDepth: 180, size: 10, value: 20, color: "#ff6b35", speed: 1.2 },
+    { name: "Blue Tang", shape: "fish", minDepth: 5, maxDepth: 190, size: 12, value: 35, color: "#2b5cff", speed: 1.4 },
+    { name: "Manta Ray", shape: "manta", minDepth: 10, maxDepth: 195, size: 28, value: 110, color: "#2b2d42", speed: 0.9 },
+    { name: "Jellyfish", shape: "jellyfish", minDepth: 210, maxDepth: 950, size: 18, value: 75, color: "#e056fd", speed: 0.4 },
+    { name: "Lanternfish", shape: "fish", minDepth: 250, maxDepth: 980, size: 14, value: 120, color: "#00f5d4", speed: 1.1 },
+    { name: "Oarfish", shape: "eel", minDepth: 300, maxDepth: 920, size: 30, value: 250, color: "#c0c0c0", speed: 0.7 },
+    { name: "Anglerfish", shape: "angler", minDepth: 1020, maxDepth: 3800, size: 22, value: 300, color: "#7b2cbf", speed: 0.8 },
+    { name: "Gulper Eel", shape: "eel", minDepth: 1010, maxDepth: 3950, size: 24, value: 420, color: "#3a0ca3", speed: 1.3 },
+    { name: "Giant Squid", shape: "squid", minDepth: 1200, maxDepth: 3900, size: 35, value: 650, color: "#f72585", speed: 1.8 },
+    { name: "Hadopelagic Jelly", shape: "jellyfish", minDepth: 4050, maxDepth: 5900, size: 22, value: 1200, color: "#480ca8", speed: 0.5 },
+    { name: "Trench Leviathan", shape: "eel", minDepth: 4500, maxDepth: 6300, size: 55, value: 3500, color: "#00f5d4", speed: 0.5, isMythical: true },
+    { name: "Abyssal Kraken", shape: "squid", minDepth: 5000, maxDepth: 6300, size: 60, value: 5000, color: "#7209b7", speed: 1.5, isMythical: true },
+    { name: "Fried Egg Jellyfish", shape: "jellyfish", minDepth: 10, maxDepth: 1500, size: 22, value: 90, color: "#F2C464", speed: 0.4 },
+    { name: "Mauve Stinger", shape: "jellyfish", minDepth: 10, maxDepth: 800, size: 14, value: 60, color: "#C084FC", speed: 0.5 },
+    { name: "Moon Jellyfish", shape: "jellyfish", minDepth: 10, maxDepth: 500, size: 18, value: 40, color: "#E6F3FF", speed: 0.3 },
+    { name: "Heart Urchin", shape: "urchin", minDepth: 10, maxDepth: 600, size: 8, value: 45, color: "#F5E6C8", speed: 0.15 },
+    { name: "Sea Urchin", shape: "urchin", minDepth: 10, maxDepth: 400, size: 9, value: 50, color: "#3A0A2A", speed: 0.12 },
+    { name: "Crab", shape: "crab", minDepth: 10, maxDepth: 200, size: 12, value: 30, color: "#B8541A", speed: 0.7 },
+    { name: "Hermit Crab", shape: "crab", minDepth: 10, maxDepth: 100, size: 11, value: 35, color: "#F0D9B5", speed: 0.4 },
+    { name: "Oysters", shape: "oyster", minDepth: 10, maxDepth: 50, size: 7, value: 25, color: "#A8A8A8", speed: 0 },
+    { name: "Red Dragon Eel", shape: "eel", minDepth: 1500, maxDepth: 5500, size: 26, value: 750, color: "#8B0000", speed: 0.9 },
+    { name: "Nautilus", shape: "squid", minDepth: 200, maxDepth: 700, size: 24, value: 180, color: "#FAF0E6", speed: 0.65 },
+    { name: "Deep Fried Egg Jelly", shape: "jellyfish", minDepth: 4000, maxDepth: 6200, size: 30, value: 1400, color: "#4FC3F7", speed: 0.25 },
+    { name: "Deep Mauve Stinger", shape: "jellyfish", minDepth: 4000, maxDepth: 6200, size: 20, value: 1100, color: "#A855F7", speed: 0.35 },
+    { name: "Giant Heart Urchin", shape: "urchin", minDepth: 4000, maxDepth: 6200, size: 14, value: 950, color: "#E0F2FE", speed: 0.08 },
+    { name: "Abyss Dragon Eel", shape: "eel", minDepth: 4000, maxDepth: 6200, size: 34, value: 2200, color: "#DC2626", speed: 0.65 },
+    { name: "Deep Nautilus", shape: "squid", minDepth: 4000, maxDepth: 6200, size: 32, value: 1800, color: "#10B981", speed: 0.5 },
+];
+
+const UPGRADES = [
+    { 
+        id: 'hull', name: 'Pressure Hull Strength', desc: 'Upgrades hull to dive deeper into Abyssal/Hadal Trenches.', 
+        costMoney: 150, costScrap: 3, level: 1, max: 6, 
+        apply: () => { 
+            player.hullLevel++; 
+            const depths = [200, 1000, 2500, 4000, 6000, 6500];
+            player.maxSafeDepth = depths[player.hullLevel - 1]; 
+            checkAndSpawnEntities();
+        } 
+    },
+    { 
+        id: 'hotbar', name: 'Hotbar Slot Extension', desc: 'Adds an extra hotbar slot on your HUD.', 
+        costMoney: 100, costScrap: 0, level: 1, max: 4, 
+        apply: () => { player.maxHotbarSlots += 1; } 
+    },
+    { 
+        id: 'reach', name: 'Laser Range Multiplier', desc: 'Expands scanning laser radius to capture samples from farther away.', 
+        costMoney: 120, costScrap: 2, level: 1, max: 4, 
+        apply: () => { player.scanRange += 35; } 
+    },
+    { 
+        id: 'co2', name: 'CO2 Scrubber Extender', desc: 'Increases maximum CO2 storage capacity.', 
+        costMoney: 75, costScrap: 1, level: 1, max: 10, 
+        apply: () => { player.maxCo2 += 50; player.co2 += 50; } 
+    },
+    { 
+        id: 'cargo', name: 'Expanded Containment Vault', desc: 'Expands total item stack capacity per slot.', 
+        costMoney: 60, costScrap: 1, level: 1, max: 5, 
+        apply: () => player.maxTotalItems += 5 
+    },
+    { 
+        id: 'oxy', name: 'Oxygen Life Support Tank', desc: 'Extends underwater dive time.', 
+        costMoney: 50, costScrap: 1, level: 1, max: 10, 
+        apply: () => { player.maxOxygen += 50; player.oxygen += 50; } 
+    },
+    { 
+        id: 'engine', name: 'Dual Propulsion Turbines', desc: 'Mounts dual thrusters for higher speed.', 
+        costMoney: 80, costScrap: 2, level: 1, max: 4, 
+        apply: () => { player.accel += 0.05; player.maxSpeedX += 0.7; } 
+    }
+];
+
+window.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('click', hideContextMenu);
+
+function initWorld() {
+    BASES.forEach(depth => {
+        if (depth > 0) {
+            airPockets.push({
+                x: 1400,
+                y: depth * GRID_SIZE,
+                radius: 100
+            });
+        }
+    });
+    
+    for (let x = 0; x < WORLD_WIDTH; x += 120) {
+        seabedStructures.push({
+            x: x, y: WORLD_HEIGHT - 30,
+            type: Math.random() > 0.4 ? 'vent' : 'coral'
+        });
+    }
+    
+    checkAndSpawnEntities();
+}
+
+function checkAndSpawnEntities() {
+    let targetDepth = player.maxSafeDepth;
+    if (maxDepthSpawned < targetDepth) {
+        for (let d = maxDepthSpawned; d < targetDepth; d += 200) {
+            let fishCount = Math.floor(Math.random() * 6) + 5; 
+            let scrapCount = Math.floor(Math.random() * 4) + 7; 
+            
+            for (let i = 0; i < fishCount; i++) {
+                spawnFishAt(Math.min(WORLD_HEIGHT_METERS - 10, d + Math.random() * 200));
+            }
+            for (let i = 0; i < scrapCount; i++) {
+                let y = Math.min(WORLD_HEIGHT_METERS - 10, d + Math.random() * 200) * GRID_SIZE;
+                let walls = getSandWalls(y);
+                scrapNodes.push({
+                    x: Math.random() * (walls.right - walls.left - 80) + walls.left + 40,
+                    y: y
+                });
+            }
+        }
+        maxDepthSpawned = targetDepth;
+    }
+}
+
+function getRandomMutation() {
+    const totalWeight = MUTATIONS.reduce((sum, m) => sum + m.weight, 0);
+    let random = Math.random() * totalWeight;
+    for (let m of MUTATIONS) {
+        if (random < m.weight) return m;
+        random -= m.weight;
+    }
+    return MUTATIONS[0];
+}
+
+function spawnFishAt(depthMeters) {
+    let eligible = SPECIES.filter(s => depthMeters >= s.minDepth && depthMeters <= s.maxDepth);
+    if (eligible.length === 0) eligible = [SPECIES[0]];
+    let spec = eligible[Math.floor(Math.random() * eligible.length)];
+    let mut = getRandomMutation();
+
+    let y = depthMeters * GRID_SIZE;
+    let walls = getSandWalls(y);
+    let spawnX = Math.random() * (walls.right - walls.left - 100) + walls.left + 50;
+
+    marineLife.push({
+        x: spawnX,
+        y: y,
+        type: spec,
+        mutation: mut,
+        vx: (Math.random() > 0.5 ? 1 : -1) * spec.speed,
+        tailPhase: Math.random() * Math.PI * 2,
+        isStandingOnSand: false,
+        standTimer: 0,
+        standWallSide: null
+    });
+}
+
+function spawnSingleFish() {
+    spawnFishAt(Math.random() * player.maxSafeDepth);
+}
+
+function spawnSingleScrap() {
+    let depth = Math.random() * player.maxSafeDepth;
+    let y = depth * GRID_SIZE;
+    let walls = getSandWalls(y);
+    scrapNodes.push({
+        x: Math.random() * (walls.right - walls.left - 80) + walls.left + 40,
+        y: y
+    });
+}
+
+window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') togglePause();
+    keys[e.key.toLowerCase()] = true;
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function togglePause() {
+    isPaused = !isPaused;
+    document.getElementById('pause-overlay').style.display = isPaused ? 'flex' : 'none';
+    hideContextMenu();
+}
+
+function toggleShop(open) {
+    shopOpen = open;
+    document.getElementById('shop-modal').style.display = shopOpen ? 'block' : 'none';
+    if (shopOpen) {
+        renderShop();
+        // Reveal fast travel panel if game has been beaten at least once
+        document.getElementById('fast-travel-section').style.display = window.hasBeatenGameOnce ? 'block' : 'none';
+    }
+    hideContextMenu();
+}
+
+function toggleStorage(open) {
+    storageOpen = open;
+    document.getElementById('storage-modal').style.display = storageOpen ? 'block' : 'none';
+    if (storageOpen) renderStorageVault();
+    hideContextMenu();
+}
+
+function fastTravelTo(depthMeters, targetY) {
+    // Check if player has unlocked enough hull depth for this zone
+    if (depthMeters > player.maxSafeDepth) {
+        alert(`Your current hull level only safely supports up to ${player.maxSafeDepth}m! Upgrade your hull first.`);
+        return;
+    }
+    player.x = 1600;
+    player.y = targetY + 32;
+    player.vx = 0;
+    player.vy = 0;
+    toggleShop(false);
+}
+
+function renderShop() {
+    const container = document.getElementById('shop-items');
+    container.innerHTML = '';
+    UPGRADES.forEach(u => {
+        let card = document.createElement('div');
+        card.className = 'shop-card';
+        let canAfford = player.credits >= u.costMoney && player.scraps >= u.costScrap && u.level < u.max;
+        card.innerHTML = `
+            <div>
+                <h4>${u.name} ${u.max > 1 ? 'Lvl ' + u.level : ''}</h4>
+                <p>${u.desc}</p>
+                <div class="req-tag">Cost: $${u.costMoney} Credits ${u.costScrap > 0 ? '| ' + u.costScrap + ' Scrap' : ''}</div>
+            </div>
+            <button class="btn-ui" ${!canAfford ? 'disabled' : ''} onclick="buyUpgrade('${u.id}')">
+                ${u.level >= u.max ? 'EQUIPPED' : 'Purchase Upgrade'}
+            </button>
+        `;
+        container.appendChild(card);
+    });
+}
+
+window.buyUpgrade = function(id) {
+    let u = UPGRADES.find(x => x.id === id);
+    if (u && player.credits >= u.costMoney && player.scraps >= u.costScrap && u.level < u.max) {
+        player.credits -= u.costMoney;
+        player.scraps -= u.costScrap;
+        u.level++;
+        u.apply();
+        u.costMoney = Math.floor(u.costMoney * 1.8);
+        renderShop();
+    }
+};
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('sell-drop-zone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('sell-drop-zone').classList.remove('drag-over'); }
+function handleDropSell(e) {
+    e.preventDefault();
+    document.getElementById('sell-drop-zone').classList.remove('drag-over');
+    let slotIndex = e.dataTransfer.getData('text/plain');
+    if (slotIndex !== "" && player.cargo[slotIndex]) {
+        let itemSlot = player.cargo[slotIndex];
+        let totalVal = Math.round(itemSlot.type.value * itemSlot.mutation.valMult * player.valueMultiplier) * itemSlot.count;
+        player.credits += totalVal;
+        player.cargo.splice(slotIndex, 1);
+        updateInventoryUI();
+        if (shopOpen) renderShop();
+    }
+}
+
+function renderStorageVault() {
+    const cargoContainer = document.getElementById('cargo-vault-transfer-list');
+    const vaultContainer = document.getElementById('storage-vault-list');
+    cargoContainer.innerHTML = '';
+    vaultContainer.innerHTML = '';
+
+    for (let i = 0; i < player.maxHotbarSlots; i++) {
+        let slot = document.createElement('div');
+        let item = player.cargo[i];
+        slot.className = `vault-slot ${item ? 'filled' : ''}`;
+        if (item) {
+            let color = getItemColor(item);
+            slot.innerHTML = `<span style="color:${color}; font-size:18px;">●</span><div class="count-badge">x${item.count}</div>`;
+            slot.title = `${item.type.name} (${item.mutation.name}) - Click to Deposit`;
+            slot.onclick = () => depositToVault(i);
+            slot.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showContextMenu(e, item); };
+        }
+        cargoContainer.appendChild(slot);
+    }
+
+    for (let i = 0; i < 16; i++) {
+        let slot = document.createElement('div');
+        let item = vaultStorage[i];
+        slot.className = `vault-slot ${item ? 'filled' : ''}`;
+        if (item) {
+            let color = getItemColor(item);
+            slot.innerHTML = `<span style="color:${color}; font-size:18px;">●</span><div class="count-badge">x${item.count}</div>`;
+            slot.title = `${item.type.name} (${item.mutation.name}) - Click to Retrieve`;
+            slot.onclick = () => withdrawFromVault(i);
+            slot.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showContextMenu(e, item); };
+        }
+        vaultContainer.appendChild(slot);
+    }
+}
+
+function getItemColor(item) {
+    if (item.mutation.color === 'rainbow') return '#00e5ff';
+    if (item.mutation.color === 'cosmic') return '#e0aaff';
+    return item.mutation.color || item.type.color;
+}
+
+function depositToVault(cargoIndex) {
+    let item = player.cargo[cargoIndex];
+    if (!item) return;
+
+    let existingVaultItem = vaultStorage.find(v => v && v.type.name === item.type.name && v.mutation.name === item.mutation.name);
+    if (existingVaultItem) {
+        existingVaultItem.count += item.count;
+        player.cargo.splice(cargoIndex, 1);
+    } else {
+        let emptyVaultSlot = vaultStorage.findIndex(v => v === null);
+        if (emptyVaultSlot !== -1) {
+            vaultStorage[emptyVaultSlot] = { ...item };
+            player.cargo.splice(cargoIndex, 1);
+        } else {
+            alert("Vault Storage is completely full!");
+        }
+    }
+    updateInventoryUI();
+    renderStorageVault();
+}
+
+function withdrawFromVault(vaultIndex) {
+    let item = vaultStorage[vaultIndex];
+    if (!item) return;
+
+    if (getTotalItemCount() + item.count > player.maxTotalItems) {
+        alert("Not enough submarine cargo space!");
+        return;
+    }
+
+    let existingCargo = player.cargo.find(c => c.type.name === item.type.name && c.mutation.name === item.mutation.name);
+    if (existingCargo) {
+        existingCargo.count += item.count;
+        vaultStorage[vaultIndex] = null;
+    } else if (player.cargo.length < player.maxHotbarSlots) {
+        player.cargo.push({ ...item });
+        vaultStorage[vaultIndex] = null;
+    } else {
+        alert("Submarine hotbar is full!");
+    }
+    updateInventoryUI();
+    renderStorageVault();
+}
+
+function showContextMenu(e, item) {
+    const menu = document.getElementById('custom-context-menu');
+    document.getElementById('ctx-title').innerText = item.type.name;
+    document.getElementById('ctx-mutation').innerText = `Rarity: ${item.mutation.name}`;
+    document.getElementById('ctx-mutation').style.color = item.mutation.color === 'rainbow' ? '#00e5ff' : (item.mutation.color || '#88a');
+    document.getElementById('ctx-count').innerText = `Amount: x${item.count}`;
+    document.getElementById('ctx-value').innerText = `Total Value: $${Math.round(item.type.value * item.mutation.valMult * player.valueMultiplier) * item.count}`;
+    
+    menu.style.display = 'block';
+
+    let menuWidth = menu.offsetWidth || 160;
+    let menuHeight = menu.offsetHeight || 100;
+    let posX = e.clientX + 10;
+    let posY = e.clientY + 10;
+
+    if (posX + menuWidth > window.innerWidth) posX = e.clientX - menuWidth - 10;
+    if (posY + menuHeight > window.innerHeight) posY = e.clientY - menuHeight - 10;
+
+    menu.style.left = `${posX}px`;
+    menu.style.top = `${posY}px`;
+}
+
+function hideContextMenu() {
+    document.getElementById('custom-context-menu').style.display = 'none';
+}
+
+function getTotalItemCount() {
+    return player.cargo.reduce((sum, item) => sum + item.count, 0);
+}
+
+function updateZoneHeader(depthMeters) {
+    let zoneName = "Sunlight Zone";
+    if (depthMeters >= 200 && depthMeters < 1000) zoneName = "Twilight Zone";
+    else if (depthMeters >= 1000 && depthMeters < 4000) zoneName = "Midnight Zone";
+    else if (depthMeters >= 4000 && depthMeters < 6000) zoneName = "The Abyss";
+    else if (depthMeters >= 6000) zoneName = "Trenches";
+
+    document.getElementById('zone-txt').innerText = zoneName;
+}
+
+function performRebirth() {
+    player.rebirthLevel++;
+    player.valueMultiplier = 1.0 + (player.rebirthLevel * 0.5); 
+    
+    player.x = 1600; player.y = 32; player.vx = 0; player.vy = 0;
+    player.maxOxygen = 100; player.oxygen = 100;
+    player.maxCo2 = 100; player.co2 = 100;
+    player.maxHealth = 100; player.health = 100;
+    
+    player.credits = 0; player.scraps = 0;
+    player.cargo = [];
+    vaultStorage = Array(16).fill(null);
+    
+    player.maxHotbarSlots = 5;
+    player.maxTotalItems = 5;
+    player.hullLevel = 1;
+    player.maxSafeDepth = 200;
+    player.scanRange = 110;
+    player.accel = 0.16;
+    player.maxSpeedX = 2.5;
+    
+    UPGRADES.forEach(u => {
+        u.level = 1;
+        if(u.id === 'hull') { u.costMoney = 150; u.costScrap = 3; }
+        if(u.id === 'hotbar') { u.costMoney = 100; u.costScrap = 0; }
+        if(u.id === 'reach') { u.costMoney = 120; u.costScrap = 2; }
+        if(u.id === 'co2') { u.costMoney = 75; u.costScrap = 1; }
+        if(u.id === 'cargo') { u.costMoney = 60; u.costScrap = 1; }
+        if(u.id === 'oxy') { u.costMoney = 50; u.costScrap = 1; }
+        if(u.id === 'engine') { u.costMoney = 80; u.costScrap = 2; }
+    });
+    
+    window.hasWon = false;
+    checkAndSpawnEntities();
+    
+    document.getElementById('rebirth-display').style.display = 'block';
+    document.getElementById('rebirth-txt').innerText = player.rebirthLevel;
+    
+    alert(`REBIRTH LEVEL ${player.rebirthLevel} INITIALIZED!\n\nSample values are now increased to ${player.valueMultiplier}x. Zone fast travel remains unlocked at terminals.`);
+}
+
+function handleWinChoice(chooseRebirth) {
+    document.getElementById('win-modal').style.display = 'none';
+    if (chooseRebirth) {
+        performRebirth();
+    } else {
+        alert("You may continue exploring the trench. Refresh or re-trigger the finish line if you change your mind.");
+    }
+}
+
+function update() {
+    if (isPaused) return;
+
+    let co2Penalty = player.co2 <= 25 ? 0.5 : 1.0;
+
+    if (keys['arrowleft'] || keys['a']) { player.vx -= player.accel * co2Penalty; player.facingLeft = true; }
+    if (keys['arrowright'] || keys['d']) { player.vx += player.accel * co2Penalty; player.facingLeft = false; }
+    if (keys['arrowup'] || keys['w']) player.vy -= player.accel * 1.25 * co2Penalty;
+    if (keys['arrowdown'] || keys['s']) player.vy += player.accel * co2Penalty;
+
+    player.vy += player.gravity;
+    player.vx *= player.drag;
+    player.vy *= player.drag;
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+    let playerWalls = getSandWalls(player.y);
+    if (player.x < playerWalls.left + 22) {
+        player.x = playerWalls.left + 22;
+        if (player.vx < 0) player.vx = 0;
+    }
+    if (player.x > playerWalls.right - 22) {
+        player.x = playerWalls.right - 22;
+        if (player.vx > 0) player.vx = 0;
+    }
+    
+    player.y = Math.max(16, Math.min(WORLD_HEIGHT - 65, player.y));
+
+    let inAirPocket = false;
+    for (let pocket of airPockets) {
+        if (Math.hypot(player.x - pocket.x, player.y - pocket.y) < pocket.radius) {
+            inAirPocket = true;
+            break;
+        }
+    }
+
+    if (player.y <= 40 || inAirPocket) {
+        player.oxygen = Math.min(player.maxOxygen, player.oxygen + 3.0);
+        player.co2 = Math.min(player.maxCo2, player.co2 + 3.0);
+        player.health = Math.min(player.maxHealth, player.health + 0.5);
+    } else {
+        player.oxygen = Math.max(0, player.oxygen - 0.04);
+        player.co2 = Math.max(0, player.co2 - 0.03);
+    }
+
+    if (player.oxygen <= 0) player.health -= 0.5;
+
+    let currentDepthMeters = player.y / GRID_SIZE;
+    updateZoneHeader(currentDepthMeters);
+    
+    // Win Condition & Rebirth Prompt Trigger
+    if (currentDepthMeters > 6200 && !window.hasWon) {
+        window.hasWon = true;
+        window.hasBeatenGameOnce = true; // Permanently unlocks fast travel for future runs
+        document.getElementById('win-modal').style.display = 'block';
+    }
+
+    if (currentDepthMeters > player.maxSafeDepth) {
+        player.vy = -4.0;
+        player.health -= 1.5;
+    }
+
+    if (player.health <= 0) {
+        player.x = 1600; player.y = 32; player.vx = 0; player.vy = 0;
+        player.oxygen = player.maxOxygen; player.co2 = player.maxCo2; player.health = player.maxHealth;
+        player.cargo = [];
+        alert("SUB DESTROYED! Emergency surface protocol initiated. Cargo lost.");
+    }
+
+    player.inRaftRange = false;
+    player.inStorageRange = false;
+    BASES.forEach(depth => {
+        let interactionY = depth === 0 ? 32 : (depth * GRID_SIZE) + 18;
+        if (Math.hypot(player.x - 1600, player.y - interactionY) < 100) player.inRaftRange = true;
+        if (Math.hypot(player.x - 1500, player.y - interactionY) < 100) player.inStorageRange = true;
+    });
+
+    marineLife.forEach(f => {
+        let walls = getSandWalls(f.y);
+        let margin = f.type.size + 12;
+
+        if (f.x <= walls.left + margin) {
+            f.x = walls.left + margin;
+            if (f.vx < 0) f.vx *= -1;
+
+            if (!f.isStandingOnSand && Math.random() < 0.35) {
+                f.isStandingOnSand = true;
+                f.standWallSide = 'left';
+                f.standTimer = Math.floor(Math.random() * 180) + 120;
+            }
+        } else if (f.x >= walls.right - margin) {
+            f.x = walls.right - margin;
+            if (f.vx > 0) f.vx *= -1;
+
+            if (!f.isStandingOnSand && Math.random() < 0.35) {
+                f.isStandingOnSand = true;
+                f.standWallSide = 'right';
+                f.standTimer = Math.floor(Math.random() * 180) + 120;
+            }
+        }
+
+        if (f.y > WORLD_HEIGHT - 60 - margin) {
+            f.y = WORLD_HEIGHT - 60 - margin;
+            if (!f.isStandingOnSand && Math.random() < 0.4) {
+                f.isStandingOnSand = true;
+                f.standWallSide = 'floor';
+                f.standTimer = Math.floor(Math.random() * 200) + 150;
+            }
+        }
+
+        if (f.isStandingOnSand) {
+            f.standTimer--;
+
+            if (Math.random() < 0.3) {
+                particles.push({
+                    x: f.x + (Math.random() - 0.5) * f.type.size,
+                    y: f.y + (f.standWallSide === 'floor' ? f.type.size * 0.4 : 0),
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: -Math.random() * 0.7 - 0.2,
+                    life: 28,
+                    color: f.standWallSide === 'floor' ? "#d4a373" : "#00e5ff"
+                });
+            }
+
+            if (f.standWallSide === 'left' || f.standWallSide === 'right') {
+                f.y += Math.sin(f.tailPhase * 0.5) * 0.4;
+            } else if (f.standWallSide === 'floor') {
+                f.x += (f.vx > 0 ? 0.3 : -0.3);
+            }
+
+            if (f.standTimer <= 0) {
+                f.isStandingOnSand = false;
+                if (f.standWallSide === 'left') f.vx = Math.abs(f.type.speed);
+                else if (f.standWallSide === 'right') f.vx = -Math.abs(f.type.speed);
+                else f.vy = -1.0;
+            }
+        } else {
+            f.x += f.vx;
+            f.tailPhase += 0.1;
+        }
+
+        let bounds = getSandWalls(f.y);
+        if (f.x < bounds.left + margin) f.x = bounds.left + margin;
+        if (f.x > bounds.right - margin) f.x = bounds.right - margin;
+
+        if (f.mutation.name === "Cosmic" && Math.random() < 0.3) {
+            particles.push({ x: f.x, y: f.y, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5, life: 20, color: "#ff00e5" });
+        }
+        if (f.mutation.name === "Voidtouched" && Math.random() < 0.25) {
+            particles.push({ x: f.x, y: f.y, vx: (Math.random()-0.5)*0.3, vy: -0.5, life: 25, color: "#7209b7" });
+        }
+    });
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    document.getElementById('coords-txt').innerText = `X: ${Math.round(player.x / GRID_SIZE)}m | Y: ${Math.round(currentDepthMeters)}m`;
+    document.getElementById('money-txt').innerText = `$${player.credits}`;
+    document.getElementById('scrap-txt').innerText = player.scraps;
+    document.getElementById('hull-txt').innerText = `Lvl ${player.hullLevel} (Max ${player.maxSafeDepth}m)`;
+    document.getElementById('capacity-txt').innerText = `${getTotalItemCount()}/${player.maxTotalItems}`;
+
+    document.getElementById('oxy-fill').style.height = `${(player.oxygen / player.maxOxygen) * 100}%`;
+    document.getElementById('co2-fill').style.height = `${(player.co2 / player.maxCo2) * 100}%`;
+    document.getElementById('oxy-num').innerText = `${Math.round(player.oxygen)}/${player.maxOxygen}`;
+    document.getElementById('co2-num').innerText = `${Math.round(player.co2)}/${player.maxCo2}`;
+
+    updateInventoryUI();
+}
+
+function updateInventoryUI() {
+    const invContainer = document.getElementById('inventory-list');
+    invContainer.innerHTML = '';
+    
+    document.getElementById('hotbar-title-txt').innerText = `${player.maxHotbarSlots}-HOTBAR`;
+
+    for (let i = 0; i < player.maxHotbarSlots; i++) {
+        let slot = document.createElement('div');
+        let itemSlot = player.cargo[i];
+        slot.className = `inventory-slot ${itemSlot ? 'filled' : ''}`;
+        
+        if (itemSlot) {
+            slot.draggable = true;
+            slot.ondragstart = (e) => e.dataTransfer.setData('text/plain', i);
+            let displayColor = getItemColor(itemSlot);
+            slot.innerHTML = `<span style="color:${displayColor}; font-size:16px;">●</span><div class="count-badge">x${itemSlot.count}</div>`;
+            
+            slot.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showContextMenu(e, itemSlot);
+            };
+        }
+        invContainer.appendChild(slot);
+    }
+}
+
+canvas.addEventListener('mousedown', e => {
+    hideContextMenu();
+    if (e.button !== 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, player.x - canvas.width / 2));
+    let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, player.y - canvas.height / 2));
+
+    const clickWorldX = e.clientX - rect.left + camX;
+    const clickWorldY = e.clientY - rect.top + camY;
+
+    let clickedShop = false, clickedStorage = false;
+    BASES.forEach(depth => {
+        let interactionY = depth === 0 ? 24 : (depth * GRID_SIZE) + 10;
+        if (Math.hypot(clickWorldX - 1600, clickWorldY - interactionY) < 80 && player.inRaftRange) clickedShop = true;
+        if (Math.hypot(clickWorldX - 1500, clickWorldY - interactionY) < 80 && player.inStorageRange) clickedStorage = true;
+    });
+
+    if (clickedShop) { toggleShop(true); return; }
+    if (clickedStorage) { toggleStorage(true); return; }
+    if (shopOpen || storageOpen || isPaused) return;
+
+    for (let i = scrapNodes.length - 1; i >= 0; i--) {
+        let node = scrapNodes[i];
+        if (Math.hypot(clickWorldX - node.x, clickWorldY - node.y) < 25 && Math.hypot(player.x - node.x, player.y - node.y) <= player.scanRange) {
+            player.scraps++;
+            scrapNodes.splice(i, 1);
+            spawnSingleScrap();
+            return;
+        }
+    }
+
+    for (let i = marineLife.length - 1; i >= 0; i--) {
+        let f = marineLife[i];
+        if (Math.hypot(clickWorldX - f.x, clickWorldY - f.y) < f.type.size * 1.5 && Math.hypot(player.x - f.x, player.y - f.y) <= player.scanRange) {
+            if (getTotalItemCount() < player.maxTotalItems) {
+                let existingSlot = player.cargo.find(slot => slot.type.name === f.type.name && slot.mutation.name === f.mutation.name);
+                if (existingSlot) {
+                    existingSlot.count++;
+                } else if (player.cargo.length < player.maxHotbarSlots) {
+                    player.cargo.push({ type: f.type, mutation: f.mutation, count: 1 });
+                } else {
+                    alert("Hotbar full! Move items to vault or upgrade hotbar slots.");
+                    break;
+                }
+                marineLife.splice(i, 1);
+                spawnSingleFish();
+                break;
+            } else {
+                alert("Submarine Cargo Capacity Full!");
+                break;
+            }
+        }
+    }
+});
+
+function drawCreature(ctx, f) {
+    ctx.save();
+    ctx.translate(f.x, f.y);
+
+    if (f.isStandingOnSand) {
+        if (f.standWallSide === 'left') ctx.rotate(-Math.PI / 5);
+        else if (f.standWallSide === 'right') ctx.rotate(Math.PI / 5);
+        else if (f.standWallSide === 'floor') ctx.rotate(Math.sin(Date.now() * 0.003) * 0.1);
+    }
+
+    if (f.vx < 0) ctx.scale(-1, 1);
+
+    if (f.mutation.name === "Rainbow") {
+        ctx.fillStyle = `hsl(${Date.now()/10 % 360}, 100%, 60%)`;
+    } else if (f.mutation.name === "Cosmic") {
+        ctx.fillStyle = "#ff00e5";
+        ctx.shadowColor = "#00e5ff";
+        ctx.shadowBlur = 10;
+    } else if (f.mutation.color) {
+        ctx.fillStyle = f.mutation.color;
+    } else {
+        ctx.fillStyle = f.type.color;
+    }
+
+    const shape = f.type.shape || "fish";
+    const size = f.type.size;
+
+    if (shape === "oyster") {
+        let openCycle = Math.sin(f.tailPhase) * 0.15 + 0.25;
+        ctx.beginPath();
+        ctx.ellipse(0, size * 0.1, size * 0.75, size * 0.45, 0, 0, Math.PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, size * 0.05, size * 0.22, 0, Math.PI * 2);
+        let tempFill = ctx.fillStyle;
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+        ctx.fillStyle = tempFill;
+        ctx.beginPath();
+        ctx.ellipse(0, -size * 0.05, size * 0.75, size * 0.45, -openCycle, Math.PI, 0, true);
+        ctx.fill();
+    } else if (shape === "crab") {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.8, size * 0.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(-size * 0.3, -size * 0.45, size * 0.12, 0, Math.PI * 2);
+        ctx.arc(size * 0.3, -size * 0.45, size * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = ctx.fillStyle;
+        for (let i = -1; i <= 1; i += 2) {
+            let clawWave = Math.sin(f.tailPhase) * 5;
+            ctx.beginPath();
+            ctx.moveTo(i * size * 0.5, 0);
+            ctx.quadraticCurveTo(i * size * 1.1, -size * 0.4 + clawWave, i * size * 1.3, -size * 0.1);
+            ctx.stroke();
+        }
+    } else if (shape === "urchin") {
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = ctx.fillStyle;
+        let spineCount = 14;
+        for (let i = 0; i < spineCount; i++) {
+            let angle = (i / spineCount) * Math.PI * 2;
+            let lengthMod = Math.sin(f.tailPhase + i) * 3;
+            let innerR = size * 0.45;
+            let outerR = size * 1.15 + lengthMod;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR);
+            ctx.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR);
+            ctx.stroke();
+        }
+    } else if (shape === "jellyfish") {
+        ctx.beginPath();
+        ctx.arc(0, -size * 0.3, size, Math.PI, 0);
+        ctx.quadraticCurveTo(0, size * 0.2, -size, -size * 0.3);
+        ctx.fill();
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 2;
+        for (let i = -2; i <= 2; i++) {
+            let offset = i * (size / 3);
+            let wave = Math.sin(f.tailPhase + i) * 6;
+            ctx.beginPath();
+            ctx.moveTo(offset, -size * 0.2);
+            ctx.quadraticCurveTo(offset + wave, size * 0.8, offset - wave, size * 1.4);
+            ctx.stroke();
+        }
+    } else if (shape === "manta") {
+        ctx.beginPath();
+        ctx.moveTo(size * 1.2, 0);
+        ctx.lineTo(-size * 0.2, -size * 0.8);
+        ctx.lineTo(-size, 0);
+        ctx.lineTo(-size * 0.2, size * 0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 2;
+        let tailWave = Math.sin(f.tailPhase) * 4;
+        ctx.beginPath();
+        ctx.moveTo(-size, 0);
+        ctx.lineTo(-size * 2.2, tailWave);
+        ctx.stroke();
+    } else if (shape === "squid") {
+        ctx.beginPath();
+        ctx.ellipse(size * 0.3, 0, size, size * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 2.5;
+        for (let i = -3; i <= 3; i++) {
+            let wave = Math.sin(f.tailPhase + i) * 8;
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.5, i * 2);
+            ctx.lineTo(-size * 1.8, i * 3 + wave);
+            ctx.stroke();
+        }
+    } else if (shape === "eel") {
+        ctx.beginPath();
+        ctx.moveTo(size, 0);
+        for (let x = size; x >= -size * 1.8; x -= 5) {
+            let y = Math.sin(f.tailPhase + x * 0.1) * 6;
+            ctx.lineTo(x, y);
+        }
+        ctx.lineWidth = size * 0.4;
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.stroke();
+    } else if (shape === "angler") {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size, size * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#00e5ff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(size * 0.2, -size * 0.7);
+        ctx.quadraticCurveTo(size * 0.8, -size * 1.5, size * 1.2, -size * 0.8);
+        ctx.stroke();
+        ctx.fillStyle = "#39ff14";
+        ctx.beginPath();
+        ctx.arc(size * 1.2, -size * 0.8, 4, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        let tailAngle = Math.sin(f.tailPhase) * 5;
+        ctx.beginPath();
+        ctx.moveTo(-size + 2, 0);
+        ctx.lineTo(-size - 8, -6 + tailAngle);
+        ctx.lineTo(-size - 8, 6 + tailAngle);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(size * 0.4, -2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    if (f.isStandingOnSand) {
+        ctx.fillStyle = "rgba(57, 255, 20, 0.85)";
+        ctx.beginPath();
+        ctx.arc(0, -size - 8, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowColor = "#39ff14";
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = "rgba(57, 255, 20, 0.6)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, -size - 8, 5 + Math.sin(Date.now() * 0.008) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+
+    ctx.restore();
+}
+
+function drawSandWalls(ctx, camX, camY) {
+    let step = 16;
+    let startY = Math.max(0, Math.floor(camY / step) * step - step);
+    let endY = Math.min(WORLD_HEIGHT, Math.ceil((camY + canvas.height) / step) * step + step);
+
+    let currentDepthM = (camY + canvas.height / 2) / GRID_SIZE;
+
+    let sandFill = "#d4a373";
+    let sandStroke = "#bc6c25";
+    let darkSand = "#9c663a";
+
+    if (currentDepthM >= 1000 && currentDepthM < 4000) {
+        sandFill = "#8c6046";
+        sandStroke = "#66412b";
+        darkSand = "#4d2f1d";
+    } else if (currentDepthM >= 4000) {
+        sandFill = "#523c31";
+        sandStroke = "#38271f";
+        darkSand = "#241812";
+    }
+
+    ctx.fillStyle = sandFill;
+    ctx.strokeStyle = sandStroke;
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(camX - 50, startY);
+    for (let y = startY; y <= endY; y += step) {
+        let w = getSandWalls(y);
+        ctx.lineTo(w.left, y);
+    }
+    ctx.lineTo(camX - 50, endY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = darkSand;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let y = startY; y <= endY; y += step * 2) {
+        let w = getSandWalls(y);
+        ctx.moveTo(w.left, y);
+        ctx.lineTo(w.left - 25 - (y % 40), y + 10);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = sandFill;
+    ctx.strokeStyle = sandStroke;
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(camX + canvas.width + 50, startY);
+    for (let y = startY; y <= endY; y += step) {
+        let w = getSandWalls(y);
+        ctx.lineTo(w.right, y);
+    }
+    ctx.lineTo(camX + canvas.width + 50, endY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = darkSand;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let y = startY; y <= endY; y += step * 2) {
+        let w = getSandWalls(y);
+        ctx.moveTo(w.right, y);
+        ctx.lineTo(w.right + 25 + (y % 40), y + 10);
+    }
+    ctx.stroke();
+
+    if (camY + canvas.height >= WORLD_HEIGHT - 80) {
+        ctx.fillStyle = sandFill;
+        ctx.fillRect(camX, WORLD_HEIGHT - 60, canvas.width, 60);
+        ctx.strokeStyle = sandStroke;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(camX, WORLD_HEIGHT - 60);
+        ctx.lineTo(camX + canvas.width, WORLD_HEIGHT - 60);
+        ctx.stroke();
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let camX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, player.x - canvas.width / 2));
+    let camY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, player.y - canvas.height / 2));
+
+    ctx.save();
+    ctx.translate(-camX, -camY);
+
+    let currentDepthMeters = player.y / GRID_SIZE;
+    let bgFill = "#6b92c9"; 
+    if (currentDepthMeters >= 200 && currentDepthMeters < 1000) bgFill = "#3a6db5";
+    else if (currentDepthMeters >= 1000 && currentDepthMeters < 4000) bgFill = "#0d2e5c";
+    else if (currentDepthMeters >= 4000 && currentDepthMeters < 6000) bgFill = "#0c131c";
+    else if (currentDepthMeters >= 6000) bgFill = "#0b0d0f";
+    
+    ctx.fillStyle = bgFill;
+    ctx.fillRect(camX, camY, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    let startGridX = Math.floor(camX / GRID_SIZE) * GRID_SIZE;
+    let endGridX = startGridX + canvas.width + GRID_SIZE;
+    let startGridY = Math.floor(camY / GRID_SIZE) * GRID_SIZE;
+    let endGridY = startGridY + canvas.height + GRID_SIZE;
+
+    ctx.beginPath();
+    for (let x = startGridX; x <= endGridX; x += GRID_SIZE) { ctx.moveTo(x, camY); ctx.lineTo(x, camY + canvas.height); }
+    for (let y = startGridY; y <= endGridY; y += GRID_SIZE) { ctx.moveTo(camX, y); ctx.lineTo(camX + canvas.width, y); }
+    ctx.stroke();
+
+    drawSandWalls(ctx, camX, camY);
+
+    airPockets.forEach(pocket => {
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 229, 255, 0.2)";
+        ctx.beginPath();
+        ctx.arc(pocket.x, pocket.y, pocket.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
+
+    BASES.forEach(depth => {
+        let baseY = depth === 0 ? 14 : depth * GRID_SIZE;
+        
+        ctx.shadowColor = "#00e5ff";
+        ctx.shadowBlur = 10;
+        
+        ctx.fillStyle = "#8d5b4c";
+        ctx.fillRect(1440, baseY, 220, 14);
+        
+        let isVaultRange = Math.hypot(player.x - 1500, player.y - (baseY + 18)) < 100;
+        ctx.fillStyle = isVaultRange ? "#ffd700" : "#ffb703";
+        ctx.fillRect(1480, baseY - 16, 40, 16);
+        
+        let isBaseRange = Math.hypot(player.x - 1600, player.y - (baseY + 18)) < 100;
+        ctx.fillStyle = isBaseRange ? "#00e5ff" : "#0288d1";
+        ctx.beginPath(); ctx.arc(1600, baseY, 20, Math.PI, 0); ctx.fill();
+        
+        ctx.shadowBlur = 0;
+    });
+
+    if (player.hasFlashlight && currentDepthMeters >= 200) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.fillStyle = "rgba(107, 146, 201, 0.25)";
+        ctx.beginPath(); 
+        ctx.arc(0, 0, player.scanRange, 0, Math.PI * 2); 
+        ctx.fill();
+        ctx.restore();
+    }
+
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
+    });
+
+    scrapNodes.forEach(n => { ctx.fillStyle = "#ffb703"; ctx.fillRect(n.x - 4, n.y - 4, 8, 8); });
+
+    marineLife.forEach(f => drawCreature(ctx, f));
+
+    ctx.save();
+    ctx.translate(player.x, player.y);
+
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.25)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, player.scanRange, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.fillStyle = player.health < 40 ? "#ff0055" : "#ffb703";
+    ctx.beginPath(); ctx.ellipse(0, 0, 16, 11, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = "#023e8a";
+    ctx.beginPath(); ctx.arc(player.facingLeft ? -6 : 6, -2, 5, 0, Math.PI * 2); ctx.fill();
+
+    ctx.restore();
+    ctx.restore();
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+initWorld();
+loop();
+</script>
+</body>
+</html>
